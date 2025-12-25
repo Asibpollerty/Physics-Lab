@@ -2586,6 +2586,50 @@
             { id: "quantum", name: "Квантовая и ядерная физика" }
         ];
 
+        // ==================== AUDIO CONTEXT FOR WELCOME SOUND ====================
+        let audioContext = null;
+        let welcomeSoundPlayed = false;
+
+        function playWelcomeSound() {
+            if (welcomeSoundPlayed) return;
+            welcomeSoundPlayed = true;
+            
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Создаём красивую мелодию приветствия
+                const notes = [
+                    { freq: 523.25, start: 0, duration: 0.15 },      // C5
+                    { freq: 659.25, start: 0.12, duration: 0.15 },   // E5
+                    { freq: 783.99, start: 0.24, duration: 0.15 },   // G5
+                    { freq: 1046.50, start: 0.36, duration: 0.3 }    // C6
+                ];
+                
+                notes.forEach(note => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = note.freq;
+                    oscillator.type = 'sine';
+                    
+                    const startTime = audioContext.currentTime + note.start;
+                    const endTime = startTime + note.duration;
+                    
+                    gainNode.gain.setValueAtTime(0, startTime);
+                    gainNode.gain.linearRampToValueAtTime(0.1, startTime + 0.02);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, endTime);
+                    
+                    oscillator.start(startTime);
+                    oscillator.stop(endTime + 0.1);
+                });
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
         // ==================== INITIALIZE APP ====================
         document.addEventListener('DOMContentLoaded', () => {
             createStars();
@@ -2593,6 +2637,18 @@
             generateFormulas();
             initializeTools();
             initializeQuiz();
+            
+            // Воспроизводим звук при первом взаимодействии
+            const playOnInteraction = () => {
+                playWelcomeSound();
+                document.removeEventListener('click', playOnInteraction);
+                document.removeEventListener('touchstart', playOnInteraction);
+                document.removeEventListener('keydown', playOnInteraction);
+            };
+            
+            document.addEventListener('click', playOnInteraction);
+            document.addEventListener('touchstart', playOnInteraction);
+            document.addEventListener('keydown', playOnInteraction);
         });
 
         // ==================== CREATE STARS ====================
@@ -2620,6 +2676,24 @@
                 const link = document.createElement('a');
                 link.href = `#${section.id}`;
                 link.textContent = section.name;
+                
+                // Добавляем обработчик для правильной навигации
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetSection = document.getElementById(section.id);
+                    if (targetSection) {
+                        // Открываем секцию
+                        const header = targetSection.querySelector('.section-header');
+                        const cardsContainer = targetSection.querySelector('.cards-container');
+                        if (header && cardsContainer) {
+                            header.classList.add('active');
+                            cardsContainer.classList.add('show');
+                        }
+                        // Плавно скроллим к секции
+                        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+                
                 nav.appendChild(link);
             });
             
@@ -2627,6 +2701,13 @@
             const quizLink = document.createElement('a');
             quizLink.href = '#quiz';
             quizLink.textContent = '⚡ Викторина';
+            quizLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                const quizSection = document.getElementById('quiz');
+                if (quizSection) {
+                    quizSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
             nav.appendChild(quizLink);
         }
 
